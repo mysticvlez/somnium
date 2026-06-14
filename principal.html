@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>somnium - Principal</title>
+    <link rel="stylesheet" href="principal.css">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+</head>
+
+<body>
+
+    <!-- BARRA SUPERIOR - Navegacion global - Ancla el menu fijo en la parte de arriba -->
+    <nav class="navbar">
+        <img src="somnium_logo.png" alt="Logo Somnium" class="logo-navbar" onclick="location.reload()">
+
+        <div class="menu-hamburguesa" id="btn-hamburguesa" onclick="alternarMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <div class="botones-navbar" id="menu-enlaces">
+            <button class="btn-nav" onclick="cambiarVista('vista-inicio')">Inicio</button>
+            <button class="btn-nav" onclick="cambiarVista('vista-historial')">Historial</button>
+            <button class="btn-nav" onclick="cambiarVista('vista-reproductor')">Playlists</button>
+            <div class="icono-perfil" onclick="cambiarVista('vista-perfil')">👤</div>
+        </div>
+    </nav>
+
+    <div class="contenedor-principal">
+
+        <!-- VISTA INICIO - Buscador reproductor y tutorial - Pantalla principal de la app -->
+        <div id="vista-inicio" class="vista-activa">
+
+            <div class="mitad-buscador">
+                <input type="text" id="input-url-musica" placeholder="Pega el link o URL del video (Solo YT Music)">
+                <button class="btn-primario" onclick="buscarCancion()">Buscar</button>
+
+                <!-- TUTORIAL PASOS - Vista inicio - Guia visual de como obtener el link -->
+                <div class="caja-tutorial" id="caja-tutorial">
+                    <p class="tutorial-titulo">¿De dónde saco el link?</p>
+                    <ol class="lista-pasos">
+                        <li class="paso-tutorial">
+                            <span class="numero-paso">1</span>
+                            <span>Abre <strong>YouTube Music</strong> en tu celular o computadora</span>
+                        </li>
+                        <li class="paso-tutorial">
+                            <span class="numero-paso">2</span>
+                            <span>Selecciona la canción que quieras escuchar</span>
+                        </li>
+                        <li class="paso-tutorial">
+                            <span class="numero-paso">3</span>
+                            <span>Toca <strong>Compartir</strong> y copia el enlace generado</span>
+                        </li>
+                        <li class="paso-tutorial">
+                            <span class="numero-paso">4</span>
+                            <span>Pégalo en el campo de arriba en somnium y pulsa <strong>Buscar</strong></span>
+                        </li>
+                        <li class="paso-tutorial">
+                            <span class="numero-paso">5</span>
+                            <span>¡Disfruta de la música! 🎵</span>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="mitad-reproductor" id="tarjeta-reproductor" style="display: none;">
+                <img id="portada-cancion-inicio" class="portada-cancion" src="" alt="Portada">
+
+                <div class="contenedor-textos-cancion">
+                    <h3 class="texto-desplazable" id="titulo-cancion-inicio">...</h3>
+                </div>
+                <p class="artista-texto" id="artista-cancion-inicio">...</p>
+
+                <div class="controles-tiempo">
+                    <button id="btn-play-pause" class="btn-circular" onclick="alternarReproduccion()">▶</button>
+                    <span class="tiempo-texto" id="tiempo-actual">0:00</span>
+                    <input type="range" class="barra-progreso" id="barra-progreso-inicio" value="0" step="1">
+                    <span class="tiempo-texto" id="tiempo-total">0:00</span>
+                </div>
+
+                <div class="fila-botones-reproductor">
+                    <button class="btn-secundario" onclick="guardarCancionActual()">Guardar canción</button>
+                    <button class="btn-primario" onclick="descargarCancion(cancionActualGlobal)">Descargar MP4</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA HISTORIAL - Listas de guardados e historial - Muestra canciones previas -->
+        <div id="vista-historial" class="vista-oculta">
+
+            <div class="pestañas-historial">
+                <button class="btn-pestaña activa" id="tab-guardados" onclick="cambiarTab('guardados')">Guardados</button>
+                <button class="btn-pestaña" id="tab-historial" onclick="cambiarTab('historial')">Historial</button>
+            </div>
+
+            <div id="lista-guardados" class="contenedor-lista-activa"></div>
+
+            <div id="lista-historial-completo" class="contenedor-lista-oculta">
+                <button class="btn-peligro btn-auto-ancho" onclick="abrirModalBorrarHistorial()">Eliminar TODO el historial</button>
+                <div id="contenido-historial" class="lista-columna"></div>
+            </div>
+        </div>
+
+        <!-- VISTA REPRODUCTOR - Playlists y detalle - Gestor de listas de reproduccion -->
+        <div id="vista-reproductor" class="vista-oculta">
+
+            <div id="panel-cuadricula-playlists" class="panel-ancho-total">
+                <button class="btn-primario btn-auto-ancho" onclick="crearNuevaPlaylist()">+ Agregar Playlist</button>
+                <div class="contenedor-grilla" id="grilla-playlists"></div>
+            </div>
+
+            <div id="panel-detalle-playlist" class="panel-ancho-total" style="display: none;">
+                <div class="fila-acciones-playlist">
+                    <button class="btn-secundario btn-auto-ancho" onclick="volverAPlaylists()">← Volver</button>
+                    <button class="btn-peligro btn-auto-ancho" onclick="borrarPlaylistActual()">Eliminar Playlist</button>
+                </div>
+
+                <div class="cabecera-playlist-detalle">
+                    <img id="portada-playlist-actual" class="portada-grande-blanca" src="fondo_inicio.png" alt="Portada Playlist" onclick="document.getElementById('input-cambiar-portada').click()">
+                    <input type="file" id="input-cambiar-portada" style="display: none;" accept="image/*" onchange="cambiarPortadaPlaylist(event)">
+
+                    <div class="info-editable-playlist">
+                        <h2 contenteditable="true" class="titulo-editable" id="titulo-playlist-actual" onblur="guardarCambiosPlaylist()">Nueva Playlist</h2>
+                        <p class="artista-texto"><span id="contador-canciones-playlist">0</span> canciones</p>
+
+                        <!-- CONTROLES MODO SPOTIFY - Playlist activa - Bucle shuffle repetir y normal -->
+                        <div class="controles-modo-playlist">
+                            <button class="btn-modo activo" id="btn-modo-normal" onclick="cambiarModoPlaylist('normal')" title="Una por una">▶ Normal</button>
+                            <button class="btn-modo" id="btn-modo-bucle" onclick="cambiarModoPlaylist('bucle')" title="Bucle">🔁 Bucle</button>
+                            <button class="btn-modo" id="btn-modo-shuffle" onclick="cambiarModoPlaylist('shuffle')" title="Aleatorio">🔀 Aleatorio</button>
+                            <button class="btn-modo" id="btn-modo-repetir" onclick="cambiarModoPlaylist('repetir')" title="Repetir cancion">🔂 Repetir</button>
+                        </div>
+
+                        <!-- ESTADO REPRODUCCION - Playlist activa - Indica la cancion que suena ahora -->
+                        <div class="estado-reproduccion-playlist" id="estado-playlist" style="display: none;">
+                            <div class="pulso-activo"></div>
+                            <span id="label-estado-playlist">Reproduciendo...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MINI REPRODUCTOR - Dentro de playlist - Controla sin salir de la vista -->
+                <div class="mini-reproductor-playlist" id="mini-reproductor-playlist" style="display:none;">
+                    <img id="mini-portada-playlist" class="mini-portada-grande" src="" alt="portada">
+                    <div class="mini-info-playlist">
+                        <p class="mini-titulo-playlist" id="mini-titulo-playlist">...</p>
+                        <p class="mini-artista-playlist" id="mini-artista-playlist">...</p>
+                        <div class="controles-tiempo mini-controles-tiempo">
+                            <button id="btn-play-playlist" class="btn-circular" style="width:38px;height:38px;min-width:38px;font-size:16px;" onclick="alternarReproduccion()">▶</button>
+                            <span class="tiempo-texto" id="mini-tiempo-actual">0:00</span>
+                            <input type="range" id="mini-barra-progreso" value="0" step="1">
+                            <span class="tiempo-texto" id="mini-tiempo-total">0:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primario btn-auto-ancho espaciado-vertical" onclick="abrirModalSeleccionCancion()">+ Añadir canción</button>
+
+                <div id="lista-canciones-playlist" class="contenedor-lista-activa"></div>
+            </div>
+        </div>
+
+        <!-- VISTA PERFIL - Datos de cuenta - Muestra y edita la informacion del usuario -->
+        <div id="vista-perfil" class="vista-oculta">
+            <div class="contenedor-datos-perfil">
+                <h2 class="titulo-blanco espaciado-abajo">Tu cuenta</h2>
+
+                <p class="etiqueta-input">Nombre de usuario</p>
+                <input type="text" class="input-perfil editable" id="perfil-nombre" onblur="actualizarNombreFirebase()">
+
+                <p class="etiqueta-input">Correo (No editable)</p>
+                <input type="email" class="input-perfil bloqueado" id="perfil-correo" readonly>
+
+                <button class="btn-peligro espaciado-arriba" onclick="abrirModalEliminarCuenta()">! Eliminación de la cuenta</button>
+                <button class="btn-secundario espaciado-arriba-doble" onclick="cerrarSesion()">Cerrar sesión</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- NOTIFICACION FLOTANTE - Sistema de alertas - Reemplaza los alerts del navegador -->
+    <div id="toast-notificacion" class="toast-oculto">Mensaje</div>
+
+    <!-- MODAL CONFIRMAR BORRAR HISTORIAL - Seguridad - Pide confirmacion antes de vaciar todo -->
+    <div id="modal-confirmacion-historial" class="fondo-modal vista-oculta">
+        <div class="caja-modal">
+            <p class="texto-modal">¿Estás seguro de que quieres eliminar TODO el historial?</p>
+            <div class="fila-botones-modal">
+                <button class="btn-peligro" onclick="vaciarHistorial()">Sí, eliminar</button>
+                <button class="btn-secundario" onclick="cerrarModal('modal-confirmacion-historial')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SELECCIONAR CANCION - Para playlists - Elige una pista desde Guardados -->
+    <div id="modal-seleccionar-guardados" class="fondo-modal vista-oculta">
+        <div class="caja-modal caja-modal-grande">
+            <h3 class="titulo-blanco espaciado-abajo">Selecciona una canción de Guardados</h3>
+            <div class="lista-seleccion-modal" id="contenedor-seleccion-guardados"></div>
+            <button class="btn-secundario espaciado-arriba" onclick="cerrarModal('modal-seleccionar-guardados')">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL ELIMINAR CUENTA - Destruccion de datos - Requiere contrasena y codigo visual -->
+    <div id="modal-eliminar-cuenta" class="fondo-modal vista-oculta">
+        <div class="caja-modal-baja">
+            <h3 class="titulo-rojo-alerta">¡ADVERTENCIA!</h3>
+            <p class="texto-blanco-alerta">Esta acción es irreversible y bajo tu propio riesgo. No nos hacemos responsables de este acto.</p>
+            <p class="texto-blanco-alerta espaciado-arriba-mini">Escribe tu contraseña y el siguiente código para confirmar:</p>
+
+            <h2 class="codigo-espaciado-azul" id="codigo-baja-visual">0 0 0 0 0 0</h2>
+
+            <input type="password" id="input-baja-pass" placeholder="Tu contraseña actual" class="input-baja-modal">
+            <input type="text" id="input-baja-codigo" placeholder="Escribe el código sin espacios" class="input-baja-modal" maxlength="6">
+
+            <div class="fila-botones-baja">
+                <button class="btn-rojo-baja" onclick="confirmarEliminacionCuenta()">Eliminar Definitivamente</button>
+                <button class="btn-azul-baja" onclick="cerrarModal('modal-eliminar-cuenta')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR YOUTUBE - Motor de audio - iframe oculto que reproduce el video -->
+    <div id="yt-player-container" class="reproductor-invisible"></div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="principal.js"></script>
+</body>
+
+</html>

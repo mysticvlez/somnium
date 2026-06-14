@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>somnium - Acceso</title>
+    <link rel="stylesheet" href="index.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body>
+
+    <img src="fondo_inicio.png" alt="Fondo" class="fondo-completo">
+
+    <nav class="navbar">
+        <img src="somnium_logo.png" alt="Logo Somnium" class="logo-navbar" onclick="location.reload()">
+        
+        <div class="menu-hamburguesa" id="btn-hamburguesa" onclick="alternarMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <div class="botones-navbar">
+            <button class="btn-nav" onclick="cambiarVista('vista-login')">Iniciar sesion</button>
+            <button class="btn-nav" onclick="cambiarVista('vista-registro')">Registrarse</button>
+            <button class="btn-nav" onclick="cambiarVista('vista-acerca')">Acerca de</button>
+        </div>
+    </nav>
+
+    <div class="contenedor-derecho">
+        
+        <div id="vista-login" class="vista-activa">
+            <h2 class="titulo-blanco">Iniciar sesión en somnium</h2>
+            <input type="email" id="login-correo" placeholder="Correo electronico">
+            
+            <div class="caja-password">
+                <input type="password" id="login-pass" placeholder="Contraseña">
+                <svg class="icono-ojo" viewBox="0 0 24 24" onmousedown="mostrarPass('login-pass')" onmouseup="ocultarPass('login-pass')" onmouseleave="ocultarPass('login-pass')">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+
+            <p id="texto-temporizador" style="color: #634bda; display: none; text-align: center; font-weight: bold;"></p>
+
+            <button class="btn-primario" id="btn-login" onclick="iniciarSesion()">Iniciar Sesión</button>
+            <p class="enlace-texto" onclick="cambiarVista('vista-recuperar')">¿Olvidaste tu contraseña?</p>
+            <button class="btn-secundario" onclick="cambiarVista('vista-registro')">¿No tienes cuenta? Registrate</button>
+        </div>
+
+        <div id="vista-registro" class="vista-oculta">
+            <h2 class="titulo-blanco">Registrarte en somnium</h2>
+            <input type="text" id="reg-usuario" placeholder="Nombre de usuario">
+            <input type="email" id="reg-correo" placeholder="Correo electronico">
+            
+            <div class="caja-password">
+                <input type="password" id="reg-pass" placeholder="Contraseña (mín. 8 caracteres)">
+                <svg class="icono-ojo" viewBox="0 0 24 24" onmousedown="mostrarPass('reg-pass')" onmouseup="ocultarPass('reg-pass')" onmouseleave="ocultarPass('reg-pass')">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+            
+            <div class="caja-password">
+                <input type="password" id="reg-pass-conf" placeholder="Confirmar Contraseña">
+                <svg class="icono-ojo" viewBox="0 0 24 24" onmousedown="mostrarPass('reg-pass-conf')" onmouseup="ocultarPass('reg-pass-conf')" onmouseleave="ocultarPass('reg-pass-conf')">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+
+            <button class="btn-primario" onclick="prepararRegistro()">Siguiente</button>
+        </div>
+
+        <div id="vista-codigo-registro" class="vista-oculta">
+            <h2 class="titulo-blanco">Te enviamos un código para verificar tu registro</h2>
+            <input type="text" id="codigo-registro-ingresado" placeholder="Codigo de verificacion" maxlength="6">
+            <p id="error-codigo-reg" style="color: #634bda; display: none; text-align: center;">El codigo es incorrecto</p>
+            <button class="btn-primario" onclick="confirmarRegistroFinal()">Crear Cuenta</button>
+            <button class="btn-secundario" onclick="cambiarVista('vista-registro')">Volver</button>
+        </div>
+
+        <div id="vista-recuperar" class="vista-oculta">
+            <h2 class="titulo-blanco">Te enviáremos un correo a tu cuenta</h2>
+            <input type="email" id="recuperar-correo" placeholder="Correo electronico">
+            <button class="btn-primario" onclick="enviarCodigoRecuperacion()">Enviar código</button>
+        </div>
+
+        <div id="vista-codigo" class="vista-oculta">
+            <h2 class="titulo-blanco">Te llegara un codigo de confirmación a tu correo</h2>
+            <input type="text" id="codigo-ingresado" placeholder="Codigo de confirmacion" maxlength="6">
+            
+            <p id="error-codigo" style="color: #634bda; display: none; text-align: center;">El codigo es incorrecto</p>
+            
+            <button class="btn-primario" onclick="validarCodigo()">Siguiente</button>
+        </div>
+
+        <div id="vista-nueva-pass" class="vista-oculta">
+            <h2 class="titulo-blanco">Restaurar contraseña</h2>
+            <div class="caja-password">
+                <input type="password" id="nueva-pass" placeholder="Contraseña nueva">
+                <svg class="icono-ojo" viewBox="0 0 24 24" onmousedown="mostrarPass('nueva-pass')" onmouseup="ocultarPass('nueva-pass')" onmouseleave="ocultarPass('nueva-pass')">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+            
+            <div class="caja-password">
+                <input type="password" id="nueva-pass-conf" placeholder="Confirmar contraseña nueva">
+                <svg class="icono-ojo" viewBox="0 0 24 24" onmousedown="mostrarPass('nueva-pass-conf')" onmouseup="ocultarPass('nueva-pass-conf')" onmouseleave="ocultarPass('nueva-pass-conf')">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+            <button class="btn-primario" onclick="guardarNuevaContrasena()">Restaurar contraseña</button>
+        </div>
+
+        <div id="vista-acerca" class="vista-oculta">
+            <h2 class="titulo-blanco">Acerca de nosotros</h2>
+            <p class="texto-descripcion">somnium es una plataforma desarrollada para la gestión de música sin fronteras de forma profesional.</p>
+        </div>
+
+        <div id="vista-mensaje" class="vista-oculta">
+            <h2 id="texto-mensaje" class="titulo-blanco">¡Operacion realizada!</h2>
+            <button class="btn-primario" onclick="cambiarVista('vista-login')">Volver al Inicio</button>
+        </div>
+
+    </div>
+
+    <footer class="pie-pagina-fijo">
+        somnium - Creación de Elías Villegas 2026
+    </footer>
+
+    <script src="index.js"></script>
+</body>
+</html>

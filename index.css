@@ -1,0 +1,277 @@
+/* RESET DE MARGENES - De todo el html - Para evitar espacios en blanco indeseados */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: sans-serif;
+}
+
+/* FONDO COMPLETO - De la imagen estatica - Para llenar el 100% de la pantalla detras de todo */
+.fondo-completo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: -2;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* BARRA DE NAVEGACION - De la parte superior - Para dar color solido negro y alinear elementos */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 40px;
+    background-color: #000000;
+    z-index: 10;
+}
+
+/* LOGO NAVBAR - De la esquina izquierda - Para dar dimensiones de boton y evitar arrastre */
+.logo-navbar {
+    height: 60px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* CONTENEDOR BOTONES NAVBAR - De la esquina derecha - Para separar los botones entre si */
+.botones-navbar {
+    display: flex;
+    gap: 20px;
+}
+
+/* BOTONES DE LA BARRA - De navegacion - Para los textos de enlaces limpios */
+.btn-nav {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-nav:hover {
+    color: #4886e6;
+}
+
+/* CONTENEDOR DERECHO - De la mitad de pantalla - Para albergar los formularios alineados */
+.contenedor-derecho {
+    position: absolute;
+    right: 0;
+    top: 50px;
+    width: 60%;
+    height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* CLASES DE VISIBILIDAD - Para el JavaScript - Para ocultar y mostrar los divs sin recargar */
+.vista-activa {
+    display: flex;
+    flex-direction: column;
+    width: 80%;
+    max-width: 450px;
+    gap: 20px;
+}
+
+.vista-oculta {
+    display: none;
+}
+
+/* TITULO BLANCO - De las pantallas de formulario - Para destacar la accion a realizar */
+.titulo-blanco {
+    color: #ffffff;
+    font-weight: normal;
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+/* TEXTO DESCRIPCION - De las pantallas informativas - Para parrafos simples de texto blanco */
+.texto-descripcion {
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* ENTRADAS DE TEXTO - De los formularios - Para estructurar inputs de email, texto y password */
+input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    background-color: #000000;
+    color: #ffffff;
+    outline: none;
+    font-size: 16px;
+}
+
+/* CONTENEDOR CONTRASEÑA - Del input de password - Para posicionar relativo el ojo */
+.caja-password {
+    position: relative;
+    width: 100%;
+}
+
+/* ICONO DEL OJO PROFESIONAL - De las contraseñas - Para usar un SVG gris sin formato de sistema */
+.icono-ojo {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    fill: #ffffff;
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+/* BOTON PRINCIPAL DEGRADADO - De envio de formularios - Para iniciar sesion o registrar */
+.btn-primario {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #4886e6, #634bda);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+/* BOTON PRINCIPAL DESACTIVADO - De bloqueos - Para cuando hay muchos intentos fallidos */
+.btn-primario:disabled {
+    background: #040023;
+    color: #888888;
+    cursor: not-allowed;
+}
+
+/* BOTON SECUNDARIO - De alternativas - Para llevar a la vista de registro desde login */
+.btn-secundario {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #4886e6;
+    border-radius: 6px;
+    background-color: transparent;
+    color: #4886e6;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* TEXTO CLICKLEABLE - De olvidar contraseña - Para ser enlace y volverse morado al pasar raton */
+.enlace-texto {
+    color: #ffffff;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.enlace-texto:hover {
+    color: #634bda;
+}
+
+/* PIE DE PAGINA FIJO - De la parte inferior de la pantalla - Para centrar los derechos y terminos */
+.pie-pagina-fijo {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ffffff;
+    font-size: 14px;
+    text-align: center;
+    z-index: 20;
+    pointer-events: auto;
+}
+
+/* ENLACE TERMINOS - Del pie de pagina - Para resaltar en azul claro remarcado y subrayado */
+.enlace-terminos {
+    color: #4886e6;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+/* CONTENEDOR HAMBURGUESA - De la barra superior - Para el boton en version movil */
+.menu-hamburguesa {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    height: 24px;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+/* LINEAS HAMBURGUESA - Del boton movil - Para dibujar las tres rayas blancas */
+.menu-hamburguesa span {
+    width: 100%;
+    height: 3px;
+    background-color: #ffffff;
+    border-radius: 2px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* MEDIA QUERY CELULARES - Para pantallas pequeñas - Para adaptar diseño a moviles */
+@media (max-width: 768px) {
+    
+    /* MOSTRAR HAMBURGUESA - Del menu - Para hacer visible el boton */
+    .menu-hamburguesa {
+        display: flex;
+    }
+
+    /* OCULTAR ENLACES - De la barra - Para esconderlos en un panel central y oscuro */
+    .botones-navbar {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.95);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: right 0.3s ease;
+        z-index: 1000;
+    }
+
+    /* MOSTRAR ENLACES - Del menu activo - Para deslizar el panel hacia la pantalla */
+    .botones-navbar.activo {
+        right: 0;
+    }
+
+    /* ACOMODAR BOTONES - Del panel lateral - Para centrarlos y agrandarlos al tacto */
+    .btn-nav {
+        font-size: 24px;
+        margin: 20px 0;
+    }
+
+    /* ANIMACION HAMBURGUESA 1 - De la linea superior - Para formar la cruz de cerrado */
+    .menu-hamburguesa.activo span:nth-child(1) {
+        transform: translateY(10.5px) rotate(45deg);
+    }
+    
+    /* ANIMACION HAMBURGUESA 2 - De la linea central - Para ocultarla al abrir menu */
+    .menu-hamburguesa.activo span:nth-child(2) {
+        opacity: 0;
+    }
+
+    /* ANIMACION HAMBURGUESA 3 - De la linea inferior - Para formar la cruz de cerrado */
+    .menu-hamburguesa.activo span:nth-child(3) {
+        transform: translateY(-10.5px) rotate(-45deg);
+    }
+
+    /* AJUSTE CONTENEDOR FORMULARIO - De los inputs - Para centrar horizontalmente en celulares */
+    .contenedor-derecho {
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+    }
+}
