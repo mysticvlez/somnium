@@ -1085,3 +1085,67 @@ input[type="range"] {
         font-size: 13px;
     }
 }
+
+/* ========================================== */
+/* MODAL DESCARGA - Panel interno de descarga real */
+/* ========================================== */
+
+/* CAJA MODAL DESCARGA - Del modal interno - Contenedor del panel de descarga con cobalt */
+.caja-modal-descarga {
+    max-width: 480px;
+    text-align: left;
+}
+
+/* FILA INFO DESCARGA - Del modal - Fila con portada y datos de la cancion a descargar */
+.fila-desc-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: #040023;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #634bda;
+}
+
+/* AVISO DESCARGA - Del modal - Texto explicativo antes de confirmar */
+.texto-desc-aviso {
+    font-size: 13px;
+    color: #888888;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+/* ESTADO DESCARGA - Del modal - Mensaje dinamico que cambia segun el proceso */
+.desc-estado {
+    font-size: 14px;
+    padding: 8px 0;
+    min-height: 24px;
+    line-height: 1.4;
+}
+
+/* ESTADO CARGANDO - Del modal - Color neutro mientras espera respuesta de cobalt */
+.desc-estado-cargando {
+    color: #4886e6;
+}
+
+/* ESTADO OK - Del modal - Color verde cuando el link esta listo */
+.desc-estado-ok {
+    color: #4caf50;
+}
+
+/* ESTADO ERROR - Del modal - Color rojo cuando el servicio automatico falla */
+.desc-estado-error {
+    color: #ff9800;
+}
+
+@media (max-width: 768px) {
+    .caja-modal-descarga {
+        max-width: 100%;
+    }
+
+    .fila-desc-info {
+        flex-direction: row;
+        align-items: center;
+    }
+}

@@ -225,6 +225,34 @@
         </div>
     </div>
 
+    <!-- MODAL DESCARGA - Sistema de descarga real - Panel interno que gestiona la descarga con audio -->
+    <div id="modal-descarga" class="fondo-modal vista-oculta">
+        <div class="caja-modal caja-modal-descarga">
+            <h3 class="titulo-blanco espaciado-abajo">Descargar canción</h3>
+
+            <div class="fila-desc-info">
+                <img id="modal-desc-portada" class="mini-portada" src="" alt="portada">
+                <div class="info-fila">
+                    <h4 id="modal-desc-titulo">...</h4>
+                    <p id="modal-desc-artista">...</p>
+                </div>
+            </div>
+
+            <p class="texto-desc-aviso">Se descargará el video completo con audio real desde YouTube.</p>
+
+            <p id="modal-desc-estado" class="desc-estado"></p>
+
+            <!-- INPUT FALLBACK - Del modal - Se muestra solo si el servicio automatico falla -->
+            <input type="text" id="modal-desc-link-fallback" class="input-baja-modal" style="display:none;" readonly>
+
+            <div class="fila-botones-modal" style="margin-top:20px;">
+                <button class="btn-primario" id="btn-desc-confirmar" onclick="confirmarDescarga()">Descargar ahora</button>
+                <button class="btn-secundario" id="btn-desc-copiar" style="display:none;" onclick="copiarLinkDescarga()">Copiar link</button>
+                <button class="btn-secundario" onclick="cerrarModal('modal-descarga')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CONTENEDOR YOUTUBE - Motor de audio - iframe oculto que reproduce el video -->
     <div id="yt-player-container" class="reproductor-invisible"></div>
 

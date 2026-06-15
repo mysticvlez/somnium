@@ -34,18 +34,8 @@ auth.onAuthStateChanged((user) => {
    PERMISOS Y SEGUNDO PLANO - Para moviles y pantalla apagada
    ========================================== */
 
-/* PEDIR PERMISOS AUDIO - Al iniciar sesion - Activa reproduccion en segundo plano y pantalla apagada */
+/* PEDIR PERMISOS AUDIO - Al iniciar sesion - Registra media session y espera primer toque para wakeLock */
 function pedirPermisosAudio() {
-    /* WAKE LOCK - Del sistema movil - Intenta mantener el audio activo con la pantalla apagada */
-    if ('wakeLock' in navigator) {
-        navigator.wakeLock.request('screen').catch(() => {});
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                navigator.wakeLock.request('screen').catch(() => {});
-            }
-        });
-    }
-
     /* MEDIA SESSION - Del sistema operativo - Registra controles de audio en pantalla de bloqueo */
     if ('mediaSession' in navigator) {
         navigator.mediaSession.setActionHandler('play', () => {
@@ -65,23 +55,33 @@ function pedirPermisosAudio() {
         });
     }
 
-    /* AUDIO CONTEXT - Para iOS - Desbloquea el audio tras primer toque del usuario */
-    document.addEventListener('touchstart', desbloquearAudioIOS, { once: true });
-    document.addEventListener('click', desbloquearAudioIOS, { once: true });
-}
+    /* WAKE LOCK Y AUDIO IOS - Del primer toque - Se activan solo cuando el usuario interactua por primera vez */
+    function activarSegundoPlanoAlTocar() {
+        /* WAKE LOCK - Del sistema movil - Mantiene el audio activo con la pantalla apagada */
+        if ('wakeLock' in navigator) {
+            navigator.wakeLock.request('screen').catch(() => {});
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+                    navigator.wakeLock.request('screen').catch(() => {});
+                }
+            });
+        }
 
-/* DESBLOQUEAR AUDIO IOS - Del primer toque - Resuelve la restriccion de autoplay en Safari */
-function desbloquearAudioIOS() {
-    if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+        /* AUDIO CONTEXT IOS - Del primer toque - Desbloquea el audio en Safari iOS */
         const CtxClass = window.AudioContext || window.webkitAudioContext;
-        const ctx = new CtxClass();
-        const buf = ctx.createBuffer(1, 1, 22050);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(0);
-        ctx.close();
+        if (CtxClass) {
+            const ctx = new CtxClass();
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+            setTimeout(() => ctx.close(), 100);
+        }
     }
+
+    document.addEventListener('touchstart', activarSegundoPlanoAlTocar, { once: true });
+    document.addEventListener('click', activarSegundoPlanoAlTocar, { once: true });
 }
 
 /* SALTAR CANCION PLAYLIST - De los controles del sistema - Salta hacia adelante o atras */
@@ -198,17 +198,31 @@ function sincronizarDatosLocales() {
 let playerYT;
 let ytListo = false;
 
-/* INICIAR YOUTUBE - API externa - Crea el iframe invisible que reproduce el audio de YouTube */
+/* INICIAR YOUTUBE - API externa - Crea el iframe invisible con parametros para bloquear anuncios y videos sugeridos */
 function onYouTubeIframeAPIReady() {
     playerYT = new YT.Player('yt-player-container', {
         height: '1', width: '1', videoId: '',
-        playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
+        playerVars: {
+            'playsinline': 1,
+            'controls': 0,
+            'disablekb': 1,
+            'rel': 0,
+            'modestbranding': 1,
+            'iv_load_policy': 3,
+            'fs': 0,
+            'cc_load_policy': 0,
+            'origin': window.location.origin
+        },
         events: {
             'onReady': () => { ytListo = true; },
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onError': (e) => { mostrarToast("Error al cargar el video (" + e.data + "). Intenta de nuevo."); }
         }
     });
 }
+
+/* ID VIDEO ESPERADO - Del motor - Guarda el video que SE PIDIO reproducir para verificar que YT no cambie */
+let videoIdEsperado = '';
 
 /* EXTRAER ID VIDEO - Del link de YouTube - Saca el codigo unico de 11 caracteres del video */
 function extraerIDVideo(url) {
@@ -217,7 +231,7 @@ function extraerIDVideo(url) {
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
-/* BUSCAR CANCION - Del input de URL - Obtiene metadata de noembed y arranca la reproduccion */
+/* BUSCAR CANCION - Del input de URL - Obtiene metadata y arranca reproduccion sin anuncios ni cruces */
 function buscarCancion() {
     if (!ytListo) { mostrarToast("El reproductor aun esta cargando, espera."); return; }
     if (!navigator.onLine) { mostrarToast("Sin conexion. No puedes buscar canciones."); return; }
@@ -225,9 +239,14 @@ function buscarCancion() {
     const videoId = extraerIDVideo(url);
     if (!videoId) { mostrarToast("Inserta un link de YouTube valido."); return; }
 
+    /* DETENER ANTES - Del motor - Para el video actual para evitar cruces de audio al cambiar rapido */
+    if (playerYT && ytListo) { try { playerYT.stopVideo(); } catch(e) {} }
+    videoIdEsperado = videoId;
+
     fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`)
     .then(res => res.json())
     .then(data => {
+        if (videoIdEsperado !== videoId) return;
         const titulo = data.title || "Audio YouTube";
         const artista = data.author_name || "Artista";
         const imagen = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
@@ -239,7 +258,7 @@ function buscarCancion() {
         document.getElementById('artista-cancion-inicio').innerText = artista;
         document.getElementById('portada-cancion-inicio').src = imagen;
 
-        playerYT.loadVideoById(videoId);
+        playerYT.loadVideoById({ videoId: videoId, suggestedQuality: 'small' });
         detenerReproduccionPlaylist();
 
         /* OCULTAR TUTORIAL - Al buscar - Esconde la guia cuando ya hay cancion activa */
@@ -274,6 +293,10 @@ function reproducirEnLista(videoId, titulo, artista, imagen) {
         return;
     }
 
+    /* DETENER ANTES - Del motor - Para el audio actual para evitar que se mezclen dos canciones */
+    try { playerYT.stopVideo(); } catch(e) {}
+    videoIdEsperado = videoId;
+
     cancionActualGlobal = { id: videoId, titulo, artista, portada: imagen };
     detenerReproduccionPlaylist();
 
@@ -283,7 +306,7 @@ function reproducirEnLista(videoId, titulo, artista, imagen) {
     document.getElementById('artista-cancion-inicio').innerText = artista;
     document.getElementById('portada-cancion-inicio').src = imagen;
 
-    playerYT.loadVideoById(videoId);
+    playerYT.loadVideoById({ videoId: videoId, suggestedQuality: 'small' });
     actualizarMediaSession(titulo, artista, imagen);
     mostrarToast('▶ ' + titulo);
 }
@@ -312,9 +335,16 @@ function actualizarBotonesPlay(icono) {
 
 let intervaloProgreso;
 
-/* CAMBIO DE ESTADO YOUTUBE - Del motor YT - Reacciona a play pausa y fin de video */
+/* CAMBIO DE ESTADO YOUTUBE - Del motor YT - Reacciona a play pausa y fin verificando que sea el video correcto */
 function onPlayerStateChange(e) {
+    /* VERIFICAR ID - Del estado PLAYING - Si YT cargo un video distinto al pedido, se detiene inmediatamente */
     if (e.data === YT.PlayerState.PLAYING) {
+        const idReal = obtenerVideoIdActual();
+        if (idReal && videoIdEsperado && idReal !== videoIdEsperado) {
+            playerYT.stopVideo();
+            mostrarToast("Se bloqueo un video no deseado. Vuelve a pulsar play.");
+            return;
+        }
         actualizarBotonesPlay('⏸');
         clearInterval(intervaloProgreso);
         intervaloProgreso = setInterval(actualizarBarrasYT, 500);
@@ -330,7 +360,47 @@ function onPlayerStateChange(e) {
     }
 }
 
-/* ACTUALIZAR BARRAS YT - Cada 500ms - Mueve el slider y tiempo en todos los reproductores activos */
+/* OBTENER VIDEO ID ACTUAL - Del motor YT - Lee la URL interna del iframe para saber que video esta cargado */
+function obtenerVideoIdActual() {
+    try {
+        const url = playerYT.getVideoUrl ? playerYT.getVideoUrl() : '';
+        const match = url.match(/[?&]v=([^&]+)/);
+        return match ? match[1] : null;
+    } catch(e) { return null; }
+}
+
+/* MANEJAR FIN CANCION - Del motor YT - Repite la cancion individual o avanza en playlist segun contexto */
+function manejarFinCancion() {
+    /* EN PLAYLIST ACTIVA - Del autoplay - Sigue el modo elegido por el usuario */
+    if (reproductiendoPlaylist && playlistActivaIndex >= 0) {
+        const lista = arrayPlaylists[playlistActivaIndex].canciones;
+        if (!lista || lista.length === 0) return;
+
+        if (modoPlaylist === 'repetir') {
+            reproducirCancionDePlaylist(indicePlaylistActual);
+        } else if (modoPlaylist === 'normal') {
+            const siguiente = indicePlaylistActual + 1;
+            if (siguiente < lista.length) { reproducirCancionDePlaylist(siguiente); }
+            else { detenerReproduccionPlaylist(); mostrarToast("Playlist finalizada."); }
+        } else if (modoPlaylist === 'bucle') {
+            reproducirCancionDePlaylist((indicePlaylistActual + 1) % lista.length);
+        } else if (modoPlaylist === 'shuffle') {
+            indiceShuffleActual++;
+            if (indiceShuffleActual >= ordenShuffle.length) {
+                ordenShuffle = mezclarArray([...Array(lista.length).keys()]);
+                indiceShuffleActual = 0;
+            }
+            reproducirCancionDePlaylist(ordenShuffle[indiceShuffleActual]);
+        }
+        return;
+    }
+
+    /* FUERA DE PLAYLIST - Inicio historial y guardados - Repite la misma cancion al terminar */
+    if (cancionActualGlobal && playerYT && ytListo) {
+        playerYT.seekTo(0, true);
+        playerYT.playVideo();
+    }
+}
 function actualizarBarrasYT() {
     if (!playerYT || !ytListo) return;
     const actual = playerYT.getCurrentTime() || 0;
@@ -383,189 +453,190 @@ function formatearTiempo(s) {
 }
 
 /* ==========================================
-   DESCARGA DE VIDEO - Video real con portada animada
+   DESCARGA REAL - Via cobalt.tools API - Audio y video completos
    ========================================== */
 
-/* DESCARGAR CANCION - Boton descargar de cualquier lista - Genera un video WebM con portada y titulo */
+/* DESCARGAR CANCION - Boton de cualquier apartado - Usa cobalt API para obtener link real con audio */
 function descargarCancion(cancion) {
     if (!cancion) { mostrarToast("No hay cancion para descargar."); return; }
+    if (!navigator.onLine) { mostrarToast("Sin conexion. No puedes descargar."); return; }
+    abrirModalDescarga(cancion);
+}
 
-    /* VERIFICAR SOPORTE - Del navegador - MediaRecorder y captureStream son necesarios */
-    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
-        mostrarToast("Tu navegador no soporta descarga de video. Usa Chrome o Edge.");
+/* ABRIR MODAL DESCARGA - Del boton descargar - Muestra el panel interno sin ventanas del navegador */
+function abrirModalDescarga(cancion) {
+    document.getElementById('modal-desc-portada').src = cancion.portada;
+    document.getElementById('modal-desc-titulo').innerText = cancion.titulo;
+    document.getElementById('modal-desc-artista').innerText = cancion.artista;
+    document.getElementById('modal-desc-estado').innerText = '';
+    document.getElementById('modal-desc-estado').className = 'desc-estado';
+    document.getElementById('btn-desc-confirmar').style.display = 'inline-block';
+
+    /* GUARDAR CANCION EN MODAL - Del estado temporal - Para usarla al confirmar */
+    document.getElementById('modal-descarga').dataset.videoId = cancion.id;
+    document.getElementById('modal-descarga').dataset.titulo = cancion.titulo;
+    document.getElementById('modal-descarga').classList.remove('vista-oculta');
+}
+
+/* CONFIRMAR DESCARGA - Del boton dentro del modal - Intenta multiples servicios hasta obtener link real */
+function confirmarDescarga() {
+    const videoId = document.getElementById('modal-descarga').dataset.videoId;
+    const titulo = document.getElementById('modal-descarga').dataset.titulo;
+    const urlYT = 'https://www.youtube.com/watch?v=' + videoId;
+    const estadoEl = document.getElementById('modal-desc-estado');
+    const btnConfirmar = document.getElementById('btn-desc-confirmar');
+
+    estadoEl.innerText = 'Conectando con el servicio de descarga...';
+    estadoEl.className = 'desc-estado desc-estado-cargando';
+    btnConfirmar.style.display = 'none';
+
+    /* INSTANCIAS COBALT - De la comunidad - Lista de servidores publicos con CORS habilitado */
+    const instanciasCobalt = [
+        'https://cobalt.api.xunn.at',
+        'https://cobalt.catto.codes',
+        'https://cobalt.drgns.space',
+        'https://api.cobalt.tools'
+    ];
+
+    intentarConCobalt(instanciasCobalt, 0, videoId, titulo, urlYT, estadoEl, btnConfirmar);
+}
+
+/* INTENTAR CON COBALT - Del sistema de descarga - Prueba cada instancia en orden hasta que una responda */
+function intentarConCobalt(instancias, indice, videoId, titulo, urlYT, estadoEl, btnConfirmar) {
+    if (indice >= instancias.length) {
+        /* TODAS FALLARON - Del sistema - Intenta con loader.to como ultimo recurso */
+        intentarConLoader(videoId, titulo, urlYT, estadoEl, btnConfirmar);
         return;
     }
 
-    mostrarToast("Preparando descarga, espera...");
+    const base = instancias[indice];
+    estadoEl.innerText = 'Conectando... (' + (indice + 1) + '/' + instancias.length + ')';
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 1280;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d');
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-
-    /* COMENZAR GRABACION - Del canvas - Inicia la captura del canvas como stream de video */
-    function iniciarGrabacion() {
-        /* ANIMAR CANVAS - De la grabacion - requestAnimationFrame mantiene el stream activo con frames reales */
-        let rafId;
-        const tamPortada = 460;
-        const xPortada = (1280 - tamPortada) / 2;
-        const yPortada = (720 - tamPortada) / 2 - 50;
-        const tituloCorto = cancion.titulo.length > 52 ? cancion.titulo.substring(0, 52) + '...' : cancion.titulo;
-        let angulo = 0;
-        let tiempoInicio = Date.now();
-        const duracionMs = 180000;
-
-        function dibujarFrame() {
-            const transcurrido = Date.now() - tiempoInicio;
-
-            /* FONDO DEGRADADO - Del frame - Fondo animado con tono cambiante */
-            const gradiente = ctx.createLinearGradient(0, 0, 1280, 720);
-            const pulso = Math.sin(transcurrido / 3000) * 0.5 + 0.5;
-            gradiente.addColorStop(0, `hsl(${220 + pulso * 20}, 80%, 8%)`);
-            gradiente.addColorStop(1, `hsl(${250 + pulso * 15}, 70%, 5%)`);
-            ctx.fillStyle = gradiente;
-            ctx.fillRect(0, 0, 1280, 720);
-
-            /* HALO PULSANTE - Detras de la portada - Circulo de luz azul animado */
-            ctx.save();
-            ctx.globalAlpha = 0.18 + pulso * 0.12;
-            const radioHalo = tamPortada * 0.6 + pulso * 30;
-            const cx = xPortada + tamPortada / 2;
-            const cy = yPortada + tamPortada / 2;
-            const gradHalo = ctx.createRadialGradient(cx, cy, 0, cx, cy, radioHalo);
-            gradHalo.addColorStop(0, '#4886e6');
-            gradHalo.addColorStop(1, 'transparent');
-            ctx.fillStyle = gradHalo;
-            ctx.beginPath();
-            ctx.arc(cx, cy, radioHalo, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            /* SOMBRA PORTADA - Detras de la imagen - Sombra difuminada bajo el album */
-            ctx.save();
-            ctx.shadowColor = 'rgba(72,134,230,0.5)';
-            ctx.shadowBlur = 40;
-            ctx.fillStyle = 'rgba(0,0,0,0)';
-            ctx.fillRect(xPortada, yPortada, tamPortada, tamPortada);
-            ctx.restore();
-
-            /* DIBUJAR PORTADA - Del frame - Imagen del album centrada con bordes redondeados */
-            ctx.save();
-            ctx.beginPath();
-            const radio = 18;
-            ctx.moveTo(xPortada + radio, yPortada);
-            ctx.lineTo(xPortada + tamPortada - radio, yPortada);
-            ctx.quadraticCurveTo(xPortada + tamPortada, yPortada, xPortada + tamPortada, yPortada + radio);
-            ctx.lineTo(xPortada + tamPortada, yPortada + tamPortada - radio);
-            ctx.quadraticCurveTo(xPortada + tamPortada, yPortada + tamPortada, xPortada + tamPortada - radio, yPortada + tamPortada);
-            ctx.lineTo(xPortada + radio, yPortada + tamPortada);
-            ctx.quadraticCurveTo(xPortada, yPortada + tamPortada, xPortada, yPortada + tamPortada - radio);
-            ctx.lineTo(xPortada, yPortada + radio);
-            ctx.quadraticCurveTo(xPortada, yPortada, xPortada + radio, yPortada);
-            ctx.closePath();
-            ctx.clip();
-            if (img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, xPortada, yPortada, tamPortada, tamPortada);
-            } else {
-                ctx.fillStyle = '#1a0050';
-                ctx.fillRect(xPortada, yPortada, tamPortada, tamPortada);
-            }
-            ctx.restore();
-
-            /* BARRA INFERIOR - Del frame - Franja semitransparente para el texto */
-            ctx.save();
-            ctx.globalAlpha = 0.72;
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 630, 1280, 90);
-            ctx.restore();
-
-            /* TITULO CANCION - Del frame - Nombre de la cancion en blanco sobre la barra */
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 34px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(tituloCorto, 640, 668);
-
-            /* ARTISTA CANCION - Del frame - Nombre del artista en azul debajo del titulo */
-            ctx.fillStyle = '#4886e6';
-            ctx.font = '24px sans-serif';
-            ctx.fillText(cancion.artista, 640, 704);
-
-            /* MARCA SOMNIUM - Del frame - Logo de texto en esquina superior derecha */
-            ctx.fillStyle = 'rgba(99,75,218,0.7)';
-            ctx.font = 'bold 20px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText('somnium', 1260, 36);
-
-            /* ONDAS MUSICALES - Del frame - Barras animadas en la parte inferior izquierda */
-            const numBarras = 6;
-            const xBase = 40;
-            const yBase = 690;
-            for (let i = 0; i < numBarras; i++) {
-                const altura = 10 + Math.abs(Math.sin(transcurrido / 300 + i * 0.8)) * 22;
-                ctx.fillStyle = '#634bda';
-                ctx.globalAlpha = 0.85;
-                ctx.fillRect(xBase + i * 14, yBase - altura, 8, altura);
-                ctx.globalAlpha = 1;
-            }
-
-            angulo += 0.005;
-            if (Date.now() - tiempoInicio < duracionMs) {
-                rafId = requestAnimationFrame(dibujarFrame);
-            }
+    fetch(base + '/', {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            url: urlYT,
+            videoQuality: '720',
+            downloadMode: 'auto',
+            filenameStyle: 'basic',
+            audioFormat: 'mp3'
+        }),
+        signal: AbortSignal.timeout(8000)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+    })
+    .then(data => {
+        const link = data.url || (data.picker && data.picker[0] && data.picker[0].url);
+        if (link && (data.status === 'tunnel' || data.status === 'redirect' || data.status === 'stream' || data.url)) {
+            /* LINK VALIDO - De cobalt - Descarga el archivo con audio y video reales */
+            lanzarDescargaDirecta(link, titulo, estadoEl);
+        } else {
+            intentarConCobalt(instancias, indice + 1, videoId, titulo, urlYT, estadoEl, btnConfirmar);
         }
+    })
+    .catch(() => {
+        intentarConCobalt(instancias, indice + 1, videoId, titulo, urlYT, estadoEl, btnConfirmar);
+    });
+}
 
-        /* CONFIGURAR STREAM - De MediaRecorder - Captura el canvas como stream de video real */
-        const stream = canvas.captureStream(30);
-        const tiposMime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-        let tipoElegido = '';
-        for (const tipo of tiposMime) {
-            if (MediaRecorder.isTypeSupported(tipo)) { tipoElegido = tipo; break; }
+/* INTENTAR CON LOADER - Del sistema de descarga - Usa loader.to API como alternativa a cobalt */
+function intentarConLoader(videoId, titulo, urlYT, estadoEl, btnConfirmar) {
+    estadoEl.innerText = 'Probando servicio alternativo...';
+
+    /* LOADER.TO API - Del servicio alternativo - API publica gratuita para descargar de YouTube */
+    fetch('https://loader.to/api/button/?url=' + encodeURIComponent(urlYT) + '&f=mp4&lang=en', {
+        signal: AbortSignal.timeout(8000)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data && data.url) {
+            lanzarDescargaDirecta(data.url, titulo, estadoEl);
+        } else {
+            intentarConYtDlpWeb(videoId, titulo, urlYT, estadoEl, btnConfirmar);
         }
-        if (!tipoElegido) { mostrarToast("Tu navegador no soporta grabacion de video."); return; }
+    })
+    .catch(() => {
+        intentarConYtDlpWeb(videoId, titulo, urlYT, estadoEl, btnConfirmar);
+    });
+}
 
-        const chunks = [];
-        const recorder = new MediaRecorder(stream, { mimeType: tipoElegido, videoBitsPerSecond: 2500000 });
+/* INTENTAR CON YTDLP WEB - Del sistema de descarga - Ultima opcion via servicio publico de yt-dlp */
+function intentarConYtDlpWeb(videoId, titulo, urlYT, estadoEl, btnConfirmar) {
+    estadoEl.innerText = 'Probando descarga directa...';
 
-        recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    /* ENDPOINT PUBLICO - Del servicio ytdlp - Instancia publica de yt-dlp con API REST */
+    fetch('https://yt-dlp-api-worker.nauf.workers.dev/?url=' + encodeURIComponent(urlYT) + '&format=best', {
+        signal: AbortSignal.timeout(10000)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data && data.url) {
+            lanzarDescargaDirecta(data.url, titulo, estadoEl);
+        } else {
+            mostrarDescargaManual(urlYT, estadoEl, btnConfirmar);
+        }
+    })
+    .catch(() => {
+        mostrarDescargaManual(urlYT, estadoEl, btnConfirmar);
+    });
+}
 
-        recorder.onstop = () => {
-            cancelAnimationFrame(rafId);
-            const blob = new Blob(chunks, { type: tipoElegido.split(';')[0] });
-            const urlBlob = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = urlBlob;
-            const nombreLimpio = cancion.titulo.replace(/[^a-z0-9\s\-_]/gi, '').trim() || 'somnium-track';
-            a.download = nombreLimpio + '.webm';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(urlBlob);
-            mostrarToast("Descarga completada!");
-        };
+/* LANZAR DESCARGA DIRECTA - Del link obtenido - Descarga el archivo real en el navegador */
+function lanzarDescargaDirecta(link, titulo, estadoEl) {
+    const nombreLimpio = titulo.replace(/[^a-z0-9\s\-_]/gi, '').trim() || 'somnium-track';
+    estadoEl.innerText = '¡Listo! Descargando archivo completo...';
+    estadoEl.className = 'desc-estado desc-estado-ok';
 
-        /* INICIAR RAF Y RECORDER - De la grabacion - Arranca los frames antes de iniciar el recorder */
-        dibujarFrame();
-        recorder.start(100);
+    const a = document.createElement('a');
+    a.href = link;
+    a.download = nombreLimpio + '.mp4';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
-        /* DURACION DESCARGA - De la grabacion - 3 segundos de vista previa visual del album */
-        const duracionDescarga = 3000;
-        setTimeout(() => {
-            recorder.stop();
-            stream.getTracks().forEach(t => t.stop());
-        }, duracionDescarga);
+    setTimeout(() => { cerrarModal('modal-descarga'); }, 2500);
+}
 
-        mostrarToast("Generando video... (3 segundos)");
+/* MOSTRAR DESCARGA MANUAL - Cuando todos los servicios fallan - Muestra link copiable para el usuario */
+function mostrarDescargaManual(urlYT, estadoEl, btnConfirmar) {
+    estadoEl.innerText = 'Los servicios automaticos no responden ahora. Copia el link y usalo en cobalt.tools o y2mate.com:';
+    estadoEl.className = 'desc-estado desc-estado-error';
+
+    const inputLink = document.getElementById('modal-desc-link-fallback');
+    if (inputLink) {
+        inputLink.value = urlYT;
+        inputLink.style.display = 'block';
     }
+    const btnCopiar = document.getElementById('btn-desc-copiar');
+    if (btnCopiar) btnCopiar.style.display = 'inline-block';
+}
 
-    img.onload = () => { iniciarGrabacion(); };
-    img.onerror = () => {
-        /* FALLBACK SIN PORTADA - Del error de imagen - Dibuja fondo de color si la imagen falla */
-        iniciarGrabacion();
-    };
-    img.src = cancion.portada;
+/* COPIAR LINK DESCARGA - Del boton copiar en el fallback - Copia el link de YouTube al portapapeles */
+function copiarLinkDescarga() {
+    const inputLink = document.getElementById('modal-desc-link-fallback');
+    if (!inputLink) return;
+    const texto = inputLink.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(() => {
+            mostrarToast('Link copiado. Pegalo en cobalt.tools o y2mate.com');
+        }).catch(() => {
+            inputLink.select();
+            document.execCommand('copy');
+            mostrarToast('Link copiado al portapapeles');
+        });
+    } else {
+        inputLink.select();
+        document.execCommand('copy');
+        mostrarToast('Link copiado al portapapeles');
+    }
 }
 
 /* GUARDAR CANCION ACTUAL - Boton guardar - Mueve la cancion activa al array de Guardados */
@@ -587,30 +658,6 @@ let indicePlaylistActual = -1;
 let reproductiendoPlaylist = false;
 let indiceShuffleActual = -1;
 let ordenShuffle = [];
-
-/* MANEJAR FIN CANCION - Del motor YT - Decide que reproducir segun el modo seleccionado */
-function manejarFinCancion() {
-    if (!reproductiendoPlaylist || playlistActivaIndex < 0) return;
-    const lista = arrayPlaylists[playlistActivaIndex].canciones;
-    if (!lista || lista.length === 0) return;
-
-    if (modoPlaylist === 'repetir') {
-        reproducirCancionDePlaylist(indicePlaylistActual);
-    } else if (modoPlaylist === 'normal') {
-        const siguiente = indicePlaylistActual + 1;
-        if (siguiente < lista.length) { reproducirCancionDePlaylist(siguiente); }
-        else { detenerReproduccionPlaylist(); mostrarToast("Playlist finalizada."); }
-    } else if (modoPlaylist === 'bucle') {
-        reproducirCancionDePlaylist((indicePlaylistActual + 1) % lista.length);
-    } else if (modoPlaylist === 'shuffle') {
-        indiceShuffleActual++;
-        if (indiceShuffleActual >= ordenShuffle.length) {
-            ordenShuffle = mezclarArray([...Array(lista.length).keys()]);
-            indiceShuffleActual = 0;
-        }
-        reproducirCancionDePlaylist(ordenShuffle[indiceShuffleActual]);
-    }
-}
 
 /* MEZCLAR ARRAY - Utilidad - Algoritmo Fisher-Yates para orden aleatorio de pistas */
 function mezclarArray(arr) {
@@ -638,7 +685,11 @@ function reproducirCancionDePlaylist(indice) {
     reproductiendoPlaylist = true;
     cancionActualGlobal = { id: c.id, titulo: c.titulo, artista: c.artista, portada: c.portada };
 
-    if (playerYT && ytListo) playerYT.loadVideoById(c.id);
+    /* DETENER ANTES Y REGISTRAR ID - Del motor - Evita que YT cargue video incorrecto o anuncio */
+    try { playerYT.stopVideo(); } catch(e) {}
+    videoIdEsperado = c.id;
+
+    if (playerYT && ytListo) playerYT.loadVideoById({ videoId: c.id, suggestedQuality: 'small' });
 
     /* ACTUALIZAR MINI REPRODUCTOR - Del panel de playlist - Muestra info sin cambiar de vista */
     const miniReproductor = document.getElementById('mini-reproductor-playlist');
